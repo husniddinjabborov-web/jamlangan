@@ -11,6 +11,7 @@ type Bot = {
   bio: string | null;
   avatar_url: string | null;
   status: string;
+  verified: boolean;
   created_at: string;
 };
 
@@ -39,11 +40,19 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Tasdiqlash (verify) uchun state
+  const [verifyBot, setVerifyBot] = useState<Bot | null>(null);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyChecking, setVerifyChecking] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+  const [verifySuccess, setVerifySuccess] = useState(false);
+
+  const authHeader = () => ({ Authorization: `tma ${initData}` });
+
   const loadMyBots = async () => {
     if (!initData) return;
-    const res = await fetch('/api/my-bots', {
-      headers: { Authorization: `tma ${initData}` },
-    });
+    const res = await fetch('/api/my-bots', { headers: authHeader() });
     if (res.status === 401) {
       setStatus('unauthorized');
       return;
@@ -75,10 +84,7 @@ export default function ProfilePage() {
     try {
       const res = await fetch('/api/bots', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `tma ${initData}`,
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ input }),
       });
       const data = await res.json();
@@ -97,6 +103,56 @@ export default function ProfilePage() {
       setError("Server bilan bog'lanishda xatolik");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openVerify = async (bot: Bot) => {
+    setVerifyBot(bot);
+    setVerifyCode('');
+    setVerifyError('');
+    setVerifySuccess(false);
+    setVerifyLoading(true);
+    try {
+      const res = await fetch('/api/verify/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ botId: bot.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.error || 'Xatolik yuz berdi');
+      } else {
+        setVerifyCode(data.code);
+      }
+    } catch {
+      setVerifyError("Server bilan bog'lanishda xatolik");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const checkVerify = async () => {
+    if (!verifyBot) return;
+    setVerifyChecking(true);
+    setVerifyError('');
+    try {
+      const res = await fetch('/api/verify/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ botId: verifyBot.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.error || 'Xatolik yuz berdi');
+      } else {
+        setVerifySuccess(true);
+        loadMyBots();
+        setTimeout(() => setVerifyBot(null), 1800);
+      }
+    } catch {
+      setVerifyError("Server bilan bog'lanishda xatolik");
+    } finally {
+      setVerifyChecking(false);
     }
   };
 
@@ -123,11 +179,7 @@ export default function ProfilePage() {
 
         <div className="flex items-center gap-4 mb-6">
           {user?.photo_url ? (
-            <img
-              src={user.photo_url}
-              alt="Profil"
-              className="w-14 h-14 rounded-full object-cover border"
-            />
+            <img src={user.photo_url} alt="Profil" className="w-14 h-14 rounded-full object-cover border" />
           ) : (
             <div className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-medium">
               {user?.first_name?.charAt(0).toUpperCase() || '?'}
@@ -147,10 +199,7 @@ export default function ProfilePage() {
             + Bot qo'shish
           </button>
           {isAdmin && (
-            <Link
-              href="/admin"
-              className="px-4 py-2 rounded-lg border hover:bg-gray-100 text-sm flex items-center"
-            >
+            <Link href="/admin" className="px-4 py-2 rounded-lg border hover:bg-gray-100 text-sm flex items-center">
               Admin panel
             </Link>
           )}
@@ -161,35 +210,43 @@ export default function ProfilePage() {
           {bots.map((bot) => (
             <div key={bot.id} className="p-4 flex items-center gap-4">
               {bot.avatar_url ? (
-                <img
-                  src={bot.avatar_url}
-                  alt={bot.username}
-                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                />
+                <img src={bot.avatar_url} alt={bot.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0">
                   {bot.username.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <div className="font-medium">{bot.name || `@${bot.username}`}</div>
+                <div className="font-medium flex items-center gap-1">
+                  {bot.name || `@${bot.username}`}
+                  {bot.verified && <span className="text-blue-500 text-sm" title="Egalik tasdiqlangan">✔</span>}
+                </div>
                 <div className="text-sm text-gray-400">@{bot.username}</div>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${statusColor[bot.status]}`}>
-                {statusLabel[bot.status] || bot.status}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`text-xs px-2 py-1 rounded-full ${statusColor[bot.status]}`}>
+                  {statusLabel[bot.status] || bot.status}
+                </span>
+                {!bot.verified && (
+                  <button
+                    onClick={() => openVerify(bot)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Egalikni tasdiqlash
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {bots.length === 0 && (
-            <div className="p-6 text-center text-gray-400">
-              Siz hali bot qo'shmagansiz
-            </div>
+            <div className="p-6 text-center text-gray-400">Siz hali bot qo'shmagansiz</div>
           )}
         </div>
       </div>
 
+      {/* Bot qo'shish modali */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-96">
             <h2 className="text-lg font-semibold mb-4">Bot qo'shish</h2>
             <input
@@ -217,6 +274,57 @@ export default function ProfilePage() {
                 {loading ? 'Tekshirilmoqda...' : "Qo'shish"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Egalikni tasdiqlash modali */}
+      {verifyBot && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h2 className="text-lg font-semibold mb-1">Egalikni tasdiqlash</h2>
+            <p className="text-gray-400 text-sm mb-4">@{verifyBot.username}</p>
+
+            {verifyLoading && <p className="text-gray-400 text-sm">Kod yaratilmoqda...</p>}
+
+            {!verifyLoading && verifyCode && !verifySuccess && (
+              <>
+                <ol className="text-sm text-gray-600 list-decimal pl-4 space-y-1 mb-4">
+                  <li>
+                    <a href="https://t.me/BotFather" target="_blank" className="text-blue-600 hover:underline">
+                      @BotFather
+                    </a>
+                    'ga o'ting → botingizni tanlang → <b>Edit Bot → Edit Description</b>
+                  </li>
+                  <li>Quyidagi kodni bio matniga (ichiga) qo'shib saqlang:</li>
+                </ol>
+                <div className="bg-gray-100 rounded-lg p-3 mb-4 text-center font-mono text-sm select-all">
+                  {verifyCode}
+                </div>
+                {verifyError && <p className="text-red-500 text-sm mb-3">{verifyError}</p>}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setVerifyBot(null)}
+                    className="px-4 py-2 rounded-lg border"
+                  >
+                    Yopish
+                  </button>
+                  <button
+                    onClick={checkVerify}
+                    disabled={verifyChecking}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+                  >
+                    {verifyChecking ? 'Tekshirilmoqda...' : 'Tekshirish'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {verifySuccess && (
+              <p className="text-green-600 text-sm">
+                ✔ Egalik tasdiqlandi! Botingiz avtomatik tasdiqlandi.
+              </p>
+            )}
           </div>
         </div>
       )}

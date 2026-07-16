@@ -8,11 +8,11 @@ export async function GET(req: NextRequest) {
 
   const { valid, user } = validateInitData(initData);
   if (!valid || !user) {
-    return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 401 });
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 });
   }
 
   const result = await pool.query(
-    `SELECT id, username, name, bio, avatar_url, status, created_at
+    `SELECT id, username, name, bio, avatar_url, status, verified, created_at
      FROM bots WHERE added_by_id = $1 ORDER BY created_at DESC`,
     [user.id]
   );

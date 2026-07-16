@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useTelegram } from '@/hooks/useTelegram';
 
 type Bot = {
@@ -13,13 +14,15 @@ type Bot = {
 };
 
 export default function Home() {
+  const { user } = useTelegram();
+  const isAdmin = user && String(user.id) === process.env.NEXT_PUBLIC_ADMIN_TELEGRAM_ID;
+
   const [bots, setBots] = useState<Bot[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  useTelegram();
 
   const loadBots = async () => {
     const res = await fetch('/api/bots');
@@ -64,12 +67,22 @@ export default function Home() {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Telegram Botlar</h1>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            + Bot qo'shish
-          </button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-gray-500 px-4 py-2 rounded-lg border hover:bg-gray-100 text-sm flex items-center"
+              >
+                Admin
+              </Link>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              + Bot qo'shish
+            </button>
+          </div>
         </div>
 
         <table className="w-full bg-white rounded-lg shadow overflow-hidden">
@@ -87,7 +100,7 @@ export default function Home() {
                 <td className="p-3">{i + 1}</td>
                 <td className="p-3">
                   
-                  <a  href={`https://t.me/${bot.username}`}
+                <a    href={`https://t.me/${bot.username}`}
                     target="_blank"
                     className="flex items-center gap-3 hover:underline"
                   >

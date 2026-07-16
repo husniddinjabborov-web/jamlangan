@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from 'react';
 
+type TelegramUser = {
+  id: number;
+  first_name: string;
+  username?: string;
+  photo_url?: string;
+};
+
 export function useTelegram() {
   const [ready, setReady] = useState(false);
   const [initData, setInitData] = useState('');
-  const [user, setUser] = useState<{ id: number; first_name: string; username?: string } | null>(null);
+  const [user, setUser] = useState<TelegramUser | null>(null);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;

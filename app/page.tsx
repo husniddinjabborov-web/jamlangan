@@ -14,7 +14,7 @@ type Bot = {
 };
 
 export default function Home() {
-  const { user } = useTelegram();
+  const { initData, user } = useTelegram();
   const isAdmin = user && String(user.id) === process.env.NEXT_PUBLIC_ADMIN_TELEGRAM_ID;
 
   const [bots, setBots] = useState<Bot[]>([]);
@@ -37,11 +37,20 @@ export default function Home() {
   const handleSubmit = async () => {
     setError('');
     setSuccessMsg('');
+
+    if (!initData) {
+      setError("Bot qo'shish uchun Telegram orqali kirish kerak");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/bots', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `tma ${initData}`,
+        },
         body: JSON.stringify({ input }),
       });
       const data = await res.json();
@@ -68,6 +77,12 @@ export default function Home() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Telegram Botlar</h1>
           <div className="flex gap-2">
+            <Link
+              href="/profile"
+              className="text-gray-500 px-4 py-2 rounded-lg border hover:bg-gray-100 text-sm flex items-center"
+            >
+              Profil
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"

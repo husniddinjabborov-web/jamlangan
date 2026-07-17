@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { validateInitData } from '@/lib/telegramAuth';
+import { validateInitData, isAdmin } from '@/lib/telegramAuth';
 import { extractUsername, extractProfileInfo, fetchTelegramPage } from '@/lib/telegramScrape';
 
 async function ensureTable() {
@@ -29,9 +29,23 @@ async function ensureTable() {
   await pool.query(`ALTER TABLE bots ADD COLUMN IF NOT EXISTS verification_code TEXT`);
 }
 
-// Faqat tasdiqlangan botlarni qaytaradi (ommaviy sahifa uchun)
-export async function GET() {
+// Tasdiqlangan botlarni qaytaradi. Agar so'rovchi admin bo'lsa, egasi haqida ma'lumot ham qo'shiladi.
+export async function GET(req: NextRequest) {
   await ensureTable();
+
+  const authHeader = req.headers.get('authorization') || '';
+  const initData = authHeader.replace(/^tma\s+/i, '').trim();
+  const { valid, userId } = validateInitData(initData);
+  const requesterIsAdmin = valid && isAdmin(userId);
+
+  if (requesterIsAdmin) {
+    const result = await pool.query(
+      `SELECT id, username, name, bio, avatar_url, added_by_id, added_by_name, created_at
+       FROM bots WHERE status = 'approved' ORDER BY created_at DESC`
+    );
+    return NextResponse.json(result.rows);
+  }
+
   const result = await pool.query(
     "SELECT id, username, name, bio, avatar_url, created_at FROM bots WHERE status = 'approved' ORDER BY created_at DESC"
   );

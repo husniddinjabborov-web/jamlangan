@@ -25,5 +25,15 @@ export function useTelegram() {
     setReady(true);
   }, []);
 
-  return { ready, initData, user };
+  const openTelegramLink = (username: string) => {
+    const url = `https://t.me/${username}`;
+    const tg = window.Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  return { ready, initData, user, openTelegramLink };
 }

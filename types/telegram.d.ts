@@ -21,6 +21,7 @@ declare global {
         colorScheme: 'light' | 'dark';
         setHeaderColor: (color: string) => void;
         setBackgroundColor: (color: string) => void;
+        openTelegramLink: (url: string) => void;
         HapticFeedback: {
           notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
         };

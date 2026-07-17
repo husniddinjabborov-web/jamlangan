@@ -13,6 +13,27 @@ type Bot = {
   created_at: string;
 };
 
+function BotAvatar({ bot }: { bot: Bot }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!bot.avatar_url || broken) {
+    return (
+      <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xl">
+        {bot.username.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={bot.avatar_url}
+      alt={bot.username}
+      onError={() => setBroken(true)}
+      className="w-16 h-16 rounded-full object-cover"
+    />
+  );
+}
+
 export default function Home() {
   const { user } = useTelegram();
   const [bots, setBots] = useState<Bot[]>([]);
@@ -28,7 +49,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Telegram Botlar</h1>
@@ -43,24 +64,14 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-3 gap-y-5">
           {bots.map((bot) => (
             <Link
               key={bot.id}
               href={`/bot/${bot.id}`}
-              className="flex flex-col items-center gap-1.5 p-2 rounded-lg hover:bg-gray-100 transition"
+              className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition"
             >
-              {bot.avatar_url ? (
-                <img
-                  src={bot.avatar_url}
-                  alt={bot.username}
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-lg">
-                  {bot.username.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <BotAvatar bot={bot} />
               <span className="text-xs text-gray-700 text-center leading-tight line-clamp-2 max-w-full">
                 {bot.name || `@${bot.username}`}
               </span>
